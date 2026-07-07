@@ -2,7 +2,7 @@ import type { Episode, Season, Show } from "../types";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
-const VIDSRC_BASE_URL = "https://vidsrc.to";
+const VIDSRC_BASE_URL = "https://vidsrc.wiki";
 
 type TmdbListResult<T> = {
   results: T[];
