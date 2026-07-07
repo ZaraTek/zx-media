@@ -27,8 +27,6 @@ function buildVideoUrl(
       return `https://vidsrc.wiki/embed/tv/${showId}/${season}/${episode}`;
     case "superembed":
       return `https://multiembed.mov/?video_id=${showId}&tmdb=1&s=${season}&e=${episode}`;
-    case "twoembed":
-      return `https://www.2embed.cc/embedtv/${showId}&s=${season}&e=${episode}`;
   }
 }
 import { useLibrary } from "../context/LibraryContext";
