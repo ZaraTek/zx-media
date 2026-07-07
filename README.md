@@ -27,9 +27,39 @@ npm run dev
 
 The app runs at http://localhost:5173.
 
+## Anonymous cloud sync (MongoDB)
+
+This project supports no-login sync for "My Library" using an anonymous profile and a private sync code.
+
+1. Add these values to your `.env` file:
+
+```bash
+MONGODB_URI=your-mongodb-connection-string
+MONGODB_DB=zx_media
+```
+
+2. Start both backend + frontend:
+
+```bash
+npm run dev:full
+```
+
+The sync API runs on `http://localhost:8787` and Vite proxies `/api/*` automatically in development.
+
+Optional (if frontend and backend are on different hosts):
+
+```bash
+VITE_SYNC_API_BASE_URL=https://your-api-domain
+```
+
 ## Notes
 
-All titles, descriptions, and artwork are fictional/dummy data. Episodes stream public sample videos from Google's test bucket, so playback needs an internet connection.
+Show metadata/artwork comes from TMDB and episode playback uses Vidsrc episode embeds.
+
+- Default embed base URL: `https://vidsrc.to`
+- Optional override in `.env`: `VITE_VIDSRC_BASE_URL=https://your-vidsrc-domain`
+
+Playback requires an internet connection and may depend on your network/ad-block/privacy settings.
 
 ## Tech
 

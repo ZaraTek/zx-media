@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getShow } from "../data/shows";
 import { useLibrary } from "../context/LibraryContext";
 import EpisodeList from "../components/EpisodeList";
+import { fetchShowById } from "../data/tmdb";
+import type { Show } from "../types";
 import {
   BackIcon,
   CheckIcon,
@@ -13,16 +14,76 @@ import {
 
 export default function ShowPage() {
   const { showId } = useParams<{ showId: string }>();
-  const show = showId ? getShow(showId) : undefined;
+  const [show, setShow] = useState<Show | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { isInLibrary, toggleLibrary } = useLibrary();
   const [activeSeason, setActiveSeason] = useState(1);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadShow() {
+      if (!showId) {
+        setLoading(false);
+        setShow(null);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchShowById(showId);
+        if (!mounted) return;
+        setShow(data);
+        setActiveSeason(data.seasons[0]?.number ?? 1);
+      } catch (err) {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : "Failed to load show");
+        setShow(null);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadShow();
+
+    return () => {
+      mounted = false;
+    };
+  }, [showId]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 py-24 text-center">
+        <h1 className="text-2xl font-bold">Loading show...</h1>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 py-24 text-center">
+        <h1 className="text-2xl font-bold">Unable to load show</h1>
+        <p className="text-sm text-red-200">{error}</p>
+        <Link
+          to="/shows"
+          className="rounded-full bg-[var(--color-accent)] px-6 py-2.5 text-sm font-semibold text-white"
+        >
+          Back to Home
+        </Link>
+      </div>
+    );
+  }
 
   if (!show) {
     return (
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 py-24 text-center">
         <h1 className="text-2xl font-bold">Show not found</h1>
         <Link
-          to="/"
+          to="/shows"
           className="rounded-full bg-[var(--color-accent)] px-6 py-2.5 text-sm font-semibold text-white"
         >
           Back to Home
@@ -48,7 +109,7 @@ export default function ShowPage() {
 
         <div className="relative mx-auto max-w-7xl px-4 pt-6 sm:px-6">
           <Link
-            to="/"
+            to="/shows"
             className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-4 py-2 text-sm font-medium text-slate-200 backdrop-blur transition hover:bg-black/50"
           >
             <BackIcon className="h-4 w-4" /> Back
@@ -93,7 +154,7 @@ export default function ShowPage() {
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 {firstEpisode && (
                   <Link
-                    to={`/watch/${show.id}/${firstEpisode.id}`}
+                    to={`/shows/watch/${show.id}/${firstEpisode.id}`}
                     className="flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--color-accent)]/40 transition hover:bg-[var(--color-accent-bright)]"
                   >
                     <PlayIcon className="h-5 w-5" /> Play S1:E1
@@ -152,11 +213,17 @@ export default function ShowPage() {
             )}
           </div>
 
-          <EpisodeList
-            show={show}
-            episodes={season.episodes}
-            seasonNumber={season.number}
-          />
+          {season ? (
+            <EpisodeList
+              show={show}
+              episodes={season.episodes}
+              seasonNumber={season.number}
+            />
+          ) : (
+            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)]/50 px-6 py-10 text-center text-slate-300">
+              No episodes available for this show.
+            </div>
+          )}
         </div>
       </div>
     </div>

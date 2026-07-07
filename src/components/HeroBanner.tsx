@@ -41,14 +41,14 @@ export default function HeroBanner({ show }: { show: Show }) {
         <div className="mt-2 flex flex-wrap items-center gap-3">
           {firstEpisode && (
             <Link
-              to={`/watch/${show.id}/${firstEpisode.id}`}
+              to={`/shows/watch/${show.id}/${firstEpisode.id}`}
               className="flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--color-accent)]/40 transition hover:bg-[var(--color-accent-bright)]"
             >
               <PlayIcon className="h-5 w-5" /> Play
             </Link>
           )}
           <Link
-            to={`/show/${show.id}`}
+            to={`/shows/${show.id}`}
             className="rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/10"
           >
             More Info

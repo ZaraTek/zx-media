@@ -28,3 +28,17 @@ export interface Show {
   trending: boolean;
   seasons: Season[];
 }
+
+export interface Book {
+  id: string;
+  title: string;
+  authors: string[];
+  description: string;
+  coverId: number | null;
+  coverUrl: string | null;
+  year: number | null;
+  subjects: string[];
+  pages: number | null;
+  rating: number | null;
+  ratingsCount: number | null;
+}

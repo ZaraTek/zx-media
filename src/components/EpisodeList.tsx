@@ -21,7 +21,7 @@ export default function EpisodeList({
         <li key={ep.id}>
           <button
             type="button"
-            onClick={() => navigate(`/watch/${show.id}/${ep.id}`)}
+            onClick={() => navigate(`/shows/watch/${show.id}/${ep.id}`)}
             className="group flex w-full items-center gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-surface-2)]"
           >
             <div

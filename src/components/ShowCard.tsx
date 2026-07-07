@@ -6,6 +6,7 @@ import { CheckIcon, PlusIcon, PlayIcon, StarIcon } from "./icons";
 export default function ShowCard({ show }: { show: Show }) {
   const { isInLibrary, toggleLibrary } = useLibrary();
   const saved = isInLibrary(show.id);
+  const seasonCount = show.seasons.length;
   const episodeCount = show.seasons.reduce(
     (n, s) => n + s.episodes.length,
     0
@@ -13,7 +14,7 @@ export default function ShowCard({ show }: { show: Show }) {
 
   return (
     <Link
-      to={`/show/${show.id}`}
+      to={`/shows/${show.id}`}
       className="group relative flex flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg shadow-black/30 transition-all duration-300 hover:-translate-y-1.5 hover:border-[var(--color-accent)]/60 hover:shadow-[0_18px_40px_-12px_rgba(43,143,255,0.45)]"
     >
       <div
@@ -59,7 +60,11 @@ export default function ShowCard({ show }: { show: Show }) {
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span>{show.year}</span>
           <span className="h-1 w-1 rounded-full bg-slate-600" />
-          <span>{episodeCount} eps</span>
+          <span>
+            {episodeCount > 0
+              ? `${episodeCount} eps`
+              : `${seasonCount} ${seasonCount === 1 ? "season" : "seasons"}`}
+          </span>
         </div>
         <p className="mt-1 line-clamp-1 text-xs text-slate-500">
           {show.genres.join(" · ")}

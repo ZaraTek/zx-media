@@ -25,6 +25,10 @@ interface VideoPlayerProps {
 
 const SPEEDS = [0.5, 1, 1.25, 1.5, 2];
 
+function isEmbedSource(src: string): boolean {
+  return /\/embed\/(movie|tv)\//.test(src);
+}
+
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
   const total = Math.floor(seconds);
@@ -43,6 +47,7 @@ export default function VideoPlayer({
   poster,
   onEnded,
 }: VideoPlayerProps) {
+  const embedMode = isEmbedSource(src);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hideTimer = useRef<number | null>(null);
@@ -191,6 +196,49 @@ export default function VideoPlayer({
 
   const progress = duration > 0 ? (current / duration) * 100 : 0;
   const bufferedPct = duration > 0 ? (buffered / duration) * 100 : 0;
+
+  if (embedMode) {
+    return (
+      <div
+        ref={containerRef}
+        className={`group relative flex w-full items-center justify-center overflow-hidden bg-black ${
+          fullscreen ? "h-screen" : "aspect-video max-h-[80vh] rounded-2xl"
+        }`}
+      >
+        <iframe
+          src={src}
+          title={title}
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          loading="lazy"
+          referrerPolicy="origin-when-cross-origin"
+          className="h-full w-full border-0"
+        />
+
+        <div className="pointer-events-none absolute left-0 right-0 top-0 bg-gradient-to-b from-black/85 to-transparent p-4 sm:p-6">
+          <h2 className="text-lg font-bold text-white drop-shadow sm:text-xl">
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="text-sm text-slate-300 drop-shadow">{subtitle}</p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+          className="absolute bottom-4 right-4 rounded-full border border-white/20 bg-black/55 p-2 text-white backdrop-blur transition hover:text-[var(--color-accent-bright)]"
+        >
+          {fullscreen ? (
+            <ExitFullscreenIcon className="h-5 w-5" />
+          ) : (
+            <FullscreenIcon className="h-5 w-5" />
+          )}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div

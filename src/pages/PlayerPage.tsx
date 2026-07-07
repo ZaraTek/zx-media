@@ -1,7 +1,13 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { getEpisode, getNextEpisode } from "../data/shows";
 import VideoPlayer from "../components/VideoPlayer";
 import { BackIcon, PlayIcon } from "../components/icons";
+import {
+  fetchShowById,
+  getEpisodeFromShow,
+  getNextEpisodeFromShow,
+} from "../data/tmdb";
+import type { Show } from "../types";
 
 export default function PlayerPage() {
   const { showId, episodeId } = useParams<{
@@ -9,16 +15,61 @@ export default function PlayerPage() {
     episodeId: string;
   }>();
   const navigate = useNavigate();
+  const [show, setShow] = useState<Show | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const found =
-    showId && episodeId ? getEpisode(showId, episodeId) : undefined;
+  useEffect(() => {
+    let mounted = true;
 
-  if (!found) {
+    async function loadShow() {
+      if (!showId) {
+        setLoading(false);
+        setShow(null);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchShowById(showId);
+        if (!mounted) return;
+        setShow(data);
+      } catch (err) {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : "Failed to load episode");
+        setShow(null);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadShow();
+
+    return () => {
+      mounted = false;
+    };
+  }, [showId]);
+
+  const found = show && episodeId ? getEpisodeFromShow(show, episodeId) : undefined;
+
+  if (loading) {
     return (
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 py-24 text-center">
-        <h1 className="text-2xl font-bold">Episode not found</h1>
+        <h1 className="text-2xl font-bold">Loading episode...</h1>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 py-24 text-center">
+        <h1 className="text-2xl font-bold">Unable to load episode</h1>
+        <p className="text-sm text-red-200">{error}</p>
         <Link
-          to="/"
+          to="/shows"
           className="rounded-full bg-[var(--color-accent)] px-6 py-2.5 text-sm font-semibold text-white"
         >
           Back to Home
@@ -27,13 +78,27 @@ export default function PlayerPage() {
     );
   }
 
-  const { show, season, episode } = found;
-  const nextEpisode = getNextEpisode(show.id, episode.id);
+  if (!found || !show) {
+    return (
+      <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 py-24 text-center">
+        <h1 className="text-2xl font-bold">Episode not found</h1>
+        <Link
+          to="/shows"
+          className="rounded-full bg-[var(--color-accent)] px-6 py-2.5 text-sm font-semibold text-white"
+        >
+          Back to Home
+        </Link>
+      </div>
+    );
+  }
+
+  const { season, episode } = found;
+  const nextEpisode = getNextEpisodeFromShow(show, episode.id);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
       <Link
-        to={`/show/${show.id}`}
+        to={`/shows/${show.id}`}
         className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-[var(--color-surface-2)]"
       >
         <BackIcon className="h-4 w-4" /> Back to {show.title}
@@ -47,7 +112,7 @@ export default function PlayerPage() {
         poster={undefined}
         onEnded={() => {
           if (nextEpisode) {
-            navigate(`/watch/${show.id}/${nextEpisode.id}`);
+            navigate(`/shows/watch/${show.id}/${nextEpisode.id}`);
           }
         }}
       />
@@ -68,7 +133,7 @@ export default function PlayerPage() {
 
           {nextEpisode && (
             <Link
-              to={`/watch/${show.id}/${nextEpisode.id}`}
+              to={`/shows/watch/${show.id}/${nextEpisode.id}`}
               className="flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-bright)]"
             >
               <PlayIcon className="h-4 w-4" /> Next Episode
