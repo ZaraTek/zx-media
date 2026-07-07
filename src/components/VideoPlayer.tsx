@@ -212,6 +212,7 @@ export default function VideoPlayer({
           allowFullScreen
           loading="lazy"
           referrerPolicy="origin-when-cross-origin"
+          sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
           className="h-full w-full border-0"
         />
 

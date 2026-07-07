@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ContinueWatchingRow from "../components/ContinueWatchingRow";
 import HeroBanner from "../components/HeroBanner";
 import SearchBar from "../components/SearchBar";
 import ShowGrid from "../components/ShowGrid";
@@ -135,6 +136,7 @@ export default function HomePage() {
               <HeroBanner show={featured} />
             </div>
           )}
+          <ContinueWatchingRow />
           <div className="animate-fade-in">
             <ShowGrid title="Trending Now" shows={trending} />
           </div>

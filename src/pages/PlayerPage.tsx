@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import VideoPlayer from "../components/VideoPlayer";
 import { BackIcon, PlayIcon } from "../components/icons";
+import { useLibrary } from "../context/LibraryContext";
 import {
   fetchShowById,
   getEpisodeFromShow,
@@ -15,6 +16,7 @@ export default function PlayerPage() {
     episodeId: string;
   }>();
   const navigate = useNavigate();
+  const { recordWatch } = useLibrary();
   const [show, setShow] = useState<Show | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +56,19 @@ export default function PlayerPage() {
   }, [showId]);
 
   const found = show && episodeId ? getEpisodeFromShow(show, episodeId) : undefined;
+
+  useEffect(() => {
+    if (!show || !found) return;
+    recordWatch({
+      showId: show.id,
+      episodeId: found.episode.id,
+      seasonNumber: found.season.number,
+      episodeNumber: found.episode.episodeNumber,
+      episodeTitle: found.episode.title,
+      showTitle: show.title,
+      poster: show.poster,
+    });
+  }, [show, found, recordWatch]);
 
   if (loading) {
     return (

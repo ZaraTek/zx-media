@@ -29,6 +29,17 @@ export interface Show {
   seasons: Season[];
 }
 
+export interface WatchProgress {
+  showId: string;
+  episodeId: string;
+  seasonNumber: number;
+  episodeNumber: number;
+  episodeTitle: string;
+  showTitle: string;
+  poster: string;
+  updatedAt: number;
+}
+
 export interface Book {
   id: string;
   title: string;

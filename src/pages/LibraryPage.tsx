@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { useLibrary } from "../context/LibraryContext";
+import ContinueWatchingRow from "../components/ContinueWatchingRow";
 import ShowGrid from "../components/ShowGrid";
 import BookGrid from "../components/BookGrid";
 import { LibraryIcon } from "../components/icons";
@@ -171,6 +172,10 @@ export default function LibraryPage() {
           <p className="mt-3 text-sm text-red-300">{syncError}</p>
         ) : null}
       </section>
+
+      <div className="mb-8 empty:hidden">
+        <ContinueWatchingRow />
+      </div>
 
       {isEmpty ? (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)]/50 px-6 py-20 text-center">

@@ -1,3 +1,5 @@
+import type { WatchProgress } from "../types";
+
 export interface GoogleUser {
   jwt: string;
   email: string;
@@ -5,6 +7,7 @@ export interface GoogleUser {
 
 interface SyncLibraryResponse {
   library: string[];
+  watchProgress: WatchProgress[];
   updatedAt: string;
 }
 
@@ -52,11 +55,12 @@ export async function pullRemoteLibrary(appJwt: string): Promise<SyncLibraryResp
 
 export async function pushRemoteLibrary(
   appJwt: string,
-  library: string[]
+  library: string[],
+  watchProgress: WatchProgress[]
 ): Promise<SyncLibraryResponse> {
   return requestJson<SyncLibraryResponse>("/api/sync/library", {
     method: "PUT",
     headers: { Authorization: `Bearer ${appJwt}` },
-    body: JSON.stringify({ library }),
+    body: JSON.stringify({ library, watchProgress }),
   });
 }

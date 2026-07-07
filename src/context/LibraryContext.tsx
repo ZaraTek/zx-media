@@ -14,14 +14,53 @@ import {
   pushRemoteLibrary,
   type GoogleUser,
 } from "../data/sync";
+import type { WatchProgress } from "../types";
 
 const LIBRARY_STORAGE_KEY = "zx-media:library";
+const WATCH_PROGRESS_STORAGE_KEY = "zx-media:watch-progress";
 const GOOGLE_USER_STORAGE_KEY = "zx-media:google-user";
+
+type WatchProgressMap = Record<string, WatchProgress>;
+
+function isWatchProgress(value: unknown): value is WatchProgress {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.showId === "string" &&
+    typeof v.episodeId === "string" &&
+    Number.isFinite(v.seasonNumber) &&
+    Number.isFinite(v.episodeNumber) &&
+    Number.isFinite(v.updatedAt)
+  );
+}
+
+function progressArrayToMap(list: WatchProgress[]): WatchProgressMap {
+  const map: WatchProgressMap = {};
+  for (const entry of list) {
+    if (isWatchProgress(entry)) map[entry.showId] = entry;
+  }
+  return map;
+}
+
+function mergeProgress(
+  a: WatchProgressMap,
+  b: WatchProgressMap
+): WatchProgressMap {
+  const merged: WatchProgressMap = { ...a };
+  for (const [showId, entry] of Object.entries(b)) {
+    const existing = merged[showId];
+    if (!existing || entry.updatedAt > existing.updatedAt) {
+      merged[showId] = entry;
+    }
+  }
+  return merged;
+}
 
 type SyncStatus = "idle" | "syncing" | "error";
 
 interface LibraryContextValue {
   library: string[];
+  continueWatching: WatchProgress[];
   isSyncEnabled: boolean;
   syncUserEmail: string | null;
   syncStatus: SyncStatus;
@@ -34,6 +73,8 @@ interface LibraryContextValue {
   addBookToLibrary: (bookId: string) => void;
   removeBookFromLibrary: (bookId: string) => void;
   toggleBookLibrary: (bookId: string) => void;
+  recordWatch: (entry: Omit<WatchProgress, "updatedAt">) => void;
+  removeWatch: (showId: string) => void;
   signInWithGoogle: (idToken: string) => Promise<void>;
   signOut: () => void;
   syncNow: () => Promise<void>;
@@ -51,6 +92,21 @@ function readInitial(): string[] {
     return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
   } catch {
     return [];
+  }
+}
+
+function readInitialProgress(): WatchProgressMap {
+  try {
+    const raw = localStorage.getItem(WATCH_PROGRESS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return progressArrayToMap(parsed);
+    if (parsed && typeof parsed === "object") {
+      return progressArrayToMap(Object.values(parsed) as WatchProgress[]);
+    }
+    return {};
+  } catch {
+    return {};
   }
 }
 
@@ -74,6 +130,8 @@ function readGoogleUser(): GoogleUser | null {
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
   const [library, setLibrary] = useState<string[]>(readInitial);
+  const [watchProgress, setWatchProgress] =
+    useState<WatchProgressMap>(readInitialProgress);
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(readGoogleUser);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -87,6 +145,17 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       /* ignore storage errors */
     }
   }, [library]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        WATCH_PROGRESS_STORAGE_KEY,
+        JSON.stringify(Object.values(watchProgress))
+      );
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [watchProgress]);
 
   useEffect(() => {
     try {
@@ -118,6 +187,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         if (!active) return;
         skipNextAutoSyncRef.current = true;
         setLibrary(result.library);
+        setWatchProgress((prev) =>
+          mergeProgress(prev, progressArrayToMap(result.watchProgress ?? []))
+        );
         setSyncStatus("idle");
         hasLoadedRemoteRef.current = true;
       } catch (err) {
@@ -154,7 +226,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setSyncError(null);
 
         try {
-          await pushRemoteLibrary(user.jwt, library);
+          await pushRemoteLibrary(
+            user.jwt,
+            library,
+            Object.values(watchProgress)
+          );
           setSyncStatus("idle");
         } catch (err) {
           setSyncStatus("error");
@@ -168,7 +244,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [googleUser, library]);
+  }, [googleUser, library, watchProgress]);
 
   const isInLibrary = useCallback(
     (showId: string) => library.includes(showId),
@@ -222,24 +298,36 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
     try {
       const user = await googleSignIn(idToken);
-      const { library: remoteLibrary } = await pullRemoteLibrary(user.jwt);
+      const { library: remoteLibrary, watchProgress: remoteProgress } =
+        await pullRemoteLibrary(user.jwt);
 
       hasLoadedRemoteRef.current = true;
       skipNextAutoSyncRef.current = true;
       setGoogleUser(user);
 
+      const mergedProgress = mergeProgress(
+        watchProgress,
+        progressArrayToMap(remoteProgress ?? [])
+      );
+      setWatchProgress(mergedProgress);
+
+      const nextLibrary = remoteLibrary.length > 0 ? remoteLibrary : library;
       if (remoteLibrary.length > 0) {
         setLibrary(remoteLibrary);
-      } else if (library.length > 0) {
-        await pushRemoteLibrary(user.jwt, library);
       }
+
+      await pushRemoteLibrary(
+        user.jwt,
+        nextLibrary,
+        Object.values(mergedProgress)
+      );
 
       setSyncStatus("idle");
     } catch (err) {
       setSyncStatus("error");
       setSyncError(err instanceof Error ? err.message : "Could not sign in with Google");
     }
-  }, [library]);
+  }, [library, watchProgress]);
 
   const signOut = useCallback(() => {
     setGoogleUser(null);
@@ -255,17 +343,47 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     setSyncError(null);
 
     try {
-      await pushRemoteLibrary(googleUser.jwt, library);
+      await pushRemoteLibrary(
+        googleUser.jwt,
+        library,
+        Object.values(watchProgress)
+      );
       setSyncStatus("idle");
     } catch (err) {
       setSyncStatus("error");
       setSyncError(err instanceof Error ? err.message : "Could not sync to cloud");
     }
-  }, [googleUser, library]);
+  }, [googleUser, library, watchProgress]);
+
+  const recordWatch = useCallback(
+    (entry: Omit<WatchProgress, "updatedAt">) => {
+      setWatchProgress((prev) => ({
+        ...prev,
+        [entry.showId]: { ...entry, updatedAt: Date.now() },
+      }));
+    },
+    []
+  );
+
+  const removeWatch = useCallback((showId: string) => {
+    setWatchProgress((prev) => {
+      if (!(showId in prev)) return prev;
+      const next = { ...prev };
+      delete next[showId];
+      return next;
+    });
+  }, []);
+
+  const continueWatching = useMemo(
+    () =>
+      Object.values(watchProgress).sort((a, b) => b.updatedAt - a.updatedAt),
+    [watchProgress]
+  );
 
   const value = useMemo(
     () => ({
       library,
+      continueWatching,
       isSyncEnabled: Boolean(googleUser),
       syncUserEmail: googleUser?.email ?? null,
       syncStatus,
@@ -278,12 +396,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       addBookToLibrary,
       removeBookFromLibrary,
       toggleBookLibrary,
+      recordWatch,
+      removeWatch,
       signInWithGoogle,
       signOut,
       syncNow,
     }),
     [
       library,
+      continueWatching,
       googleUser,
       syncStatus,
       syncError,
@@ -295,6 +416,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       addBookToLibrary,
       removeBookFromLibrary,
       toggleBookLibrary,
+      recordWatch,
+      removeWatch,
       signInWithGoogle,
       signOut,
       syncNow,

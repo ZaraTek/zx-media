@@ -41,7 +41,7 @@ function ShowsLayout() {
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-slate-300 sm:text-xl">
             Before you continue, please note that some video players may{" "}
-            <span className="text-red-500">open an ad</span> in a different tab
+            <span className="text-red-500 font-semibold">open an ad</span> in a different tab
             when you click play.
           </p>
           <a
