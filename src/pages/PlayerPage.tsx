@@ -6,6 +6,8 @@ import { BackIcon, PlayIcon } from "../components/icons";
 const SOURCES = [
   { key: "videasy",    label: "Videasy" },
   { key: "vidsrc",     label: "VidSrc" },
+  { key: "vidsrcwiki", label: "VidSrc.wiki" },
+  { key: "vidsrccc",   label: "VidSrc.cc" },
   { key: "superembed", label: "SuperEmbed" },
   { key: "twoembed",   label: "2Embed" },
 ] as const;
@@ -23,8 +25,12 @@ function buildVideoUrl(
       return `https://player.videasy.net/tv/${showId}/${season}/${episode}`;
     case "vidsrc":
       return `https://vidsrc.to/embed/tv/${showId}/${season}/${episode}`;
+    case "vidsrcwiki":
+      return `https://vidsrc.wiki/embed/tv/${showId}/${season}/${episode}`;
+    case "vidsrccc":
+      return `https://vidsrc.cc/embed/tv?tmdb=${showId}&season=${season}&episode=${episode}`;
     case "superembed":
-      return `https://multiembed.mov/directstream.php?video_id=${showId}&tmdb=1&s=${season}&e=${episode}`;
+      return `https://multiembed.mov/?video_id=${showId}&tmdb=1&s=${season}&e=${episode}`;
     case "twoembed":
       return `https://www.2embed.cc/embedtv/${showId}&s=${season}&e=${episode}`;
   }
