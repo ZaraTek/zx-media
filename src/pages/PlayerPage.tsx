@@ -2,6 +2,33 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import VideoPlayer from "../components/VideoPlayer";
 import { BackIcon, PlayIcon } from "../components/icons";
+
+const SOURCES = [
+  { key: "videasy",    label: "Videasy" },
+  { key: "vidsrc",     label: "VidSrc" },
+  { key: "superembed", label: "SuperEmbed" },
+  { key: "twoembed",   label: "2Embed" },
+] as const;
+
+type SourceKey = (typeof SOURCES)[number]["key"];
+
+function buildVideoUrl(
+  source: SourceKey,
+  showId: string,
+  season: number,
+  episode: number
+): string {
+  switch (source) {
+    case "videasy":
+      return `https://player.videasy.net/tv/${showId}/${season}/${episode}`;
+    case "vidsrc":
+      return `https://vidsrc.to/embed/tv/${showId}/${season}/${episode}`;
+    case "superembed":
+      return `https://multiembed.mov/directstream.php?video_id=${showId}&tmdb=1&s=${season}&e=${episode}`;
+    case "twoembed":
+      return `https://www.2embed.cc/embedtv/${showId}&s=${season}&e=${episode}`;
+  }
+}
 import { useLibrary } from "../context/LibraryContext";
 import {
   fetchShowById,
@@ -20,6 +47,7 @@ export default function PlayerPage() {
   const [show, setShow] = useState<Show | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<SourceKey>("videasy");
 
   useEffect(() => {
     let mounted = true;
@@ -120,8 +148,8 @@ export default function PlayerPage() {
       </Link>
 
       <VideoPlayer
-        key={episode.id}
-        src={episode.videoUrl}
+        key={`${episode.id}-${source}`}
+        src={buildVideoUrl(source, show.id, season.number, episode.episodeNumber)}
         title={episode.title}
         subtitle={`${show.title} · S${season.number}:E${episode.episodeNumber}`}
         poster={undefined}
@@ -131,6 +159,26 @@ export default function PlayerPage() {
           }
         }}
       />
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          Source
+        </span>
+        {SOURCES.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => setSource(s.key)}
+            className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+              source === s.key
+                ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-white"
+                : "border-white/15 bg-[var(--color-surface)] text-slate-300 hover:bg-[var(--color-surface-2)]"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
       <div className="mt-6 flex flex-col gap-4">
         <div className="flex flex-wrap items-start justify-between gap-4">

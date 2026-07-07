@@ -26,7 +26,12 @@ interface VideoPlayerProps {
 const SPEEDS = [0.5, 1, 1.25, 1.5, 2];
 
 function isEmbedSource(src: string): boolean {
-  return /\/embed\/(movie|tv)\//.test(src) || /videasy\.net\//.test(src);
+  return (
+    /\/embed\/(movie|tv)\//.test(src) ||
+    /videasy\.net\//.test(src) ||
+    /multiembed\.mov\//.test(src) ||
+    /2embed\.cc\//.test(src)
+  );
 }
 
 function formatTime(seconds: number): string {
