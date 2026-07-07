@@ -7,9 +7,7 @@ const SOURCES = [
   { key: "videasy",    label: "Videasy" },
   { key: "vidsrc",     label: "VidSrc" },
   { key: "vidsrcwiki", label: "VidSrc.wiki" },
-  { key: "vidsrccc",   label: "VidSrc.cc" },
   { key: "superembed", label: "SuperEmbed" },
-  { key: "twoembed",   label: "2Embed" },
 ] as const;
 
 type SourceKey = (typeof SOURCES)[number]["key"];
@@ -27,8 +25,6 @@ function buildVideoUrl(
       return `https://vidsrc.to/embed/tv/${showId}/${season}/${episode}`;
     case "vidsrcwiki":
       return `https://vidsrc.wiki/embed/tv/${showId}/${season}/${episode}`;
-    case "vidsrccc":
-      return `https://vidsrc.cc/embed/tv?tmdb=${showId}&season=${season}&episode=${episode}`;
     case "superembed":
       return `https://multiembed.mov/?video_id=${showId}&tmdb=1&s=${season}&e=${episode}`;
     case "twoembed":
