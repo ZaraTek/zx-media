@@ -2,7 +2,7 @@ import type { Episode, Season, Show } from "../types";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
-const VIDSRC_BASE_URL = "https://vidsrc.wiki";
+const VIDSRC_BASE_URL = "https://vidsrc.cc";
 
 type TmdbListResult<T> = {
   results: T[];
@@ -199,7 +199,7 @@ function getVidsrcBaseUrl(): string {
 }
 
 function buildEpisodeVideo(showId: string, seasonNumber: number, episodeNumber: number): string {
-  return `${getVidsrcBaseUrl()}/embed/tv/${showId}/${seasonNumber}/${episodeNumber}`;
+  return `${getVidsrcBaseUrl()}/v3/embed/tv/${showId}/${seasonNumber}/${episodeNumber}`;
 }
 
 export async function fetchHomeShows(): Promise<Show[]> {
