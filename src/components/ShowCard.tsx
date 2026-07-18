@@ -65,7 +65,9 @@ export default function ShowCard({ show }: { show: Show }) {
               ? "Movie"
               : episodeCount > 0
                 ? `${episodeCount} eps`
-                : `${seasonCount} ${seasonCount === 1 ? "season" : "seasons"}`}
+                : seasonCount > 0
+                  ? `${seasonCount} ${seasonCount === 1 ? "season" : "seasons"}`
+                  : "TV Series"}
           </span>
         </div>
         <p className="mt-1 line-clamp-1 text-xs text-slate-500">

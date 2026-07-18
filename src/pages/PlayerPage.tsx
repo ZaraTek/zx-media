@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import VideoPlayer from "../components/VideoPlayer";
 import { BackIcon, PlayIcon } from "../components/icons";
@@ -97,7 +97,10 @@ export default function PlayerPage() {
     };
   }, [showId]);
 
-  const found = show && episodeId ? getEpisodeFromShow(show, episodeId) : undefined;
+  const found = useMemo(
+    () => (show && episodeId ? getEpisodeFromShow(show, episodeId) : undefined),
+    [show, episodeId]
+  );
 
   useEffect(() => {
     if (!show || !found) return;
