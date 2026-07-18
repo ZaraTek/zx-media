@@ -309,7 +309,7 @@ export default function VideoPlayer({
         className={`pointer-events-none absolute inset-0 flex flex-col justify-between transition-opacity duration-300 ${
           controlsVisible ? "opacity-100" : "opacity-0"
         }`}
-      >
+      > 
         <div className="pointer-events-auto bg-gradient-to-b from-black/70 to-transparent p-4 sm:p-6">
           <h2 className="text-lg font-bold text-white drop-shadow sm:text-xl">
             {title}

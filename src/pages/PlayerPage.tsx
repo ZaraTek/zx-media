@@ -14,19 +14,32 @@ type SourceKey = (typeof SOURCES)[number]["key"];
 
 function buildVideoUrl(
   source: SourceKey,
-  showId: string,
+  mediaType: MediaType,
+  tmdbId: string,
   season: number,
   episode: number
 ): string {
+  if (mediaType === "movie") {
+    switch (source) {
+      case "videasy":
+        return `https://player.videasy.net/movie/${tmdbId}`;
+      case "vidsrc":
+        return `https://vidsrc.to/embed/movie/${tmdbId}`;
+      case "vidsrcwiki":
+        return `https://vidsrc.wiki/embed/movie/${tmdbId}`;
+      case "superembed":
+        return `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`;
+    }
+  }
   switch (source) {
     case "videasy":
-      return `https://player.videasy.net/tv/${showId}/${season}/${episode}`;
+      return `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}`;
     case "vidsrc":
-      return `https://vidsrc.to/embed/tv/${showId}/${season}/${episode}`;
+      return `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`;
     case "vidsrcwiki":
-      return `https://vidsrc.wiki/embed/tv/${showId}/${season}/${episode}`;
+      return `https://vidsrc.wiki/embed/tv/${tmdbId}/${season}/${episode}`;
     case "superembed":
-      return `https://multiembed.mov/?video_id=${showId}&tmdb=1&s=${season}&e=${episode}`;
+      return `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`;
   }
 }
 import { useLibrary } from "../context/LibraryContext";
@@ -34,8 +47,9 @@ import {
   fetchShowById,
   getEpisodeFromShow,
   getNextEpisodeFromShow,
+  parseShowId,
 } from "../data/tmdb";
-import type { Show } from "../types";
+import type { MediaType, Show } from "../types";
 
 export default function PlayerPage() {
   const { showId, episodeId } = useParams<{
@@ -90,6 +104,7 @@ export default function PlayerPage() {
     recordWatch({
       showId: show.id,
       episodeId: found.episode.id,
+      mediaType: show.mediaType,
       seasonNumber: found.season.number,
       episodeNumber: found.episode.episodeNumber,
       episodeTitle: found.episode.title,
@@ -137,6 +152,8 @@ export default function PlayerPage() {
 
   const { season, episode } = found;
   const nextEpisode = getNextEpisodeFromShow(show, episode.id);
+  const { tmdbId } = parseShowId(show.id);
+  const isMovie = show.mediaType === "movie";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
@@ -149,9 +166,9 @@ export default function PlayerPage() {
 
       <VideoPlayer
         key={`${episode.id}-${source}`}
-        src={buildVideoUrl(source, show.id, season.number, episode.episodeNumber)}
+        src={buildVideoUrl(source, show.mediaType, tmdbId, season.number, episode.episodeNumber)}
         title={episode.title}
-        subtitle={`${show.title} · S${season.number}:E${episode.episodeNumber}`}
+        subtitle={isMovie ? show.title : `${show.title} · S${season.number}:E${episode.episodeNumber}`}
         poster={undefined}
         onEnded={() => {
           if (nextEpisode) {
@@ -184,7 +201,7 @@ export default function PlayerPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
             <span className="text-sm font-bold text-[var(--color-accent-bright)]">
-              S{season.number}:E{episode.episodeNumber}
+              {isMovie ? "Feature Film" : `S${season.number}:E${episode.episodeNumber}`}
             </span>
             <h1 className="text-2xl font-black tracking-tight">
               {episode.title}

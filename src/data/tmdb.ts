@@ -1,4 +1,4 @@
-import type { Episode, Season, Show } from "../types";
+import type { Episode, MediaType, Season, Show } from "../types";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
@@ -13,10 +13,9 @@ interface TmdbGenre {
   name: string;
 }
 
-interface TmdbShowSummary {
+interface TmdbTvSummary {
   id: number;
   name: string;
-  original_name?: string;
   overview: string;
   first_air_date?: string;
   vote_average?: number;
@@ -25,10 +24,34 @@ interface TmdbShowSummary {
   backdrop_path?: string | null;
 }
 
-interface TmdbShowDetails {
+interface TmdbMovieSummary {
+  id: number;
+  title: string;
+  overview: string;
+  release_date?: string;
+  vote_average?: number;
+  genre_ids?: number[];
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+}
+
+interface TmdbMultiSearchResult {
+  id: number;
+  media_type: "movie" | "tv" | "person";
+  name?: string;
+  title?: string;
+  overview?: string;
+  first_air_date?: string;
+  release_date?: string;
+  vote_average?: number;
+  genre_ids?: number[];
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+}
+
+interface TmdbTvDetails {
   id: number;
   name: string;
-  original_name?: string;
   tagline?: string;
   overview: string;
   first_air_date?: string;
@@ -42,6 +65,19 @@ interface TmdbShowDetails {
   }>;
 }
 
+interface TmdbMovieDetails {
+  id: number;
+  title: string;
+  tagline?: string;
+  overview: string;
+  release_date?: string;
+  vote_average?: number;
+  genres?: TmdbGenre[];
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  runtime?: number | null;
+}
+
 interface TmdbSeasonDetails {
   season_number: number;
   episodes: Array<{
@@ -53,7 +89,8 @@ interface TmdbSeasonDetails {
   }>;
 }
 
-let genreCache: Map<number, string> | null = null;
+let tvGenreCache: Map<number, string> | null = null;
+let movieGenreCache: Map<number, string> | null = null;
 
 const homeShowsCache: { value: Show[] | null } = { value: null };
 const showSummaryCache = new Map<string, Show>();
@@ -74,6 +111,35 @@ function isBearerToken(token: string): boolean {
   return token.startsWith("eyJ") || token.includes(".");
 }
 
+function makeShowId(mediaType: MediaType, tmdbId: number | string): string {
+  return `${mediaType}-${tmdbId}`;
+}
+
+export function parseShowId(showId: string): {
+  mediaType: MediaType;
+  tmdbId: string;
+} {
+  const separatorIndex = showId.indexOf("-");
+  if (separatorIndex > 0) {
+    const prefix = showId.slice(0, separatorIndex);
+    if (prefix === "movie" || prefix === "tv") {
+      return { mediaType: prefix, tmdbId: showId.slice(separatorIndex + 1) };
+    }
+  }
+  // Legacy library/watch-progress entries were saved as bare TMDB TV ids.
+  return { mediaType: "tv", tmdbId: showId };
+}
+
+function interleave<T>(a: T[], b: T[]): T[] {
+  const result: T[] = [];
+  const max = Math.max(a.length, b.length);
+  for (let i = 0; i < max; i++) {
+    if (i < a.length) result.push(a[i]);
+    if (i < b.length) result.push(b[i]);
+  }
+  return result;
+}
+
 function imageBackground(path: string | null | undefined, size: "w500" | "w780" | "original", fallbackA = "#132038", fallbackB = "#080b12"): string {
   if (!path) {
     return `linear-gradient(135deg, ${fallbackA}, ${fallbackB})`;
@@ -90,8 +156,8 @@ function imageBackdrop(path: string | null | undefined): string {
   return imageBackground(path, "w780", "#123a7a", "#070a12");
 }
 
-function parseYear(firstAirDate?: string): number {
-  const year = Number(firstAirDate?.slice(0, 4));
+function parseYear(dateStr?: string): number {
+  const year = Number(dateStr?.slice(0, 4));
   return Number.isFinite(year) && year > 1900 ? year : new Date().getFullYear();
 }
 
@@ -131,53 +197,76 @@ async function tmdbFetch<T>(path: string, params?: URLSearchParams): Promise<T> 
   return (await response.json()) as T;
 }
 
-async function getGenreMap(): Promise<Map<number, string>> {
-  if (genreCache) return genreCache;
+async function getGenreMap(mediaType: MediaType): Promise<Map<number, string>> {
+  if (mediaType === "movie") {
+    if (movieGenreCache) return movieGenreCache;
+    const data = await tmdbFetch<{ genres: TmdbGenre[] }>("/genre/movie/list");
+    movieGenreCache = new Map(data.genres.map((g) => [g.id, g.name]));
+    return movieGenreCache;
+  }
+  if (tvGenreCache) return tvGenreCache;
   const data = await tmdbFetch<{ genres: TmdbGenre[] }>("/genre/tv/list");
-  genreCache = new Map(data.genres.map((g) => [g.id, g.name]));
-  return genreCache;
+  tvGenreCache = new Map(data.genres.map((g) => [g.id, g.name]));
+  return tvGenreCache;
 }
 
 function mapSummaryToShow(
-  show: TmdbShowSummary,
+  mediaType: MediaType,
+  item: TmdbTvSummary | TmdbMovieSummary,
   genreMap: Map<number, string>,
-  trendingIds: Set<number>
+  trendingKeys: Set<string>
 ): Show {
-  const genres = (show.genre_ids ?? [])
+  const title = mediaType === "movie" ? (item as TmdbMovieSummary).title : (item as TmdbTvSummary).name;
+  const dateStr =
+    mediaType === "movie"
+      ? (item as TmdbMovieSummary).release_date
+      : (item as TmdbTvSummary).first_air_date;
+
+  const genres = (item.genre_ids ?? [])
     .map((id) => genreMap.get(id))
     .filter((genre): genre is string => Boolean(genre));
 
   return {
-    id: String(show.id),
-    title: show.name,
-    tagline: "Now streaming",
-    description: show.overview || "No description available.",
-    genres: genres.length > 0 ? genres : ["TV"],
-    year: parseYear(show.first_air_date),
-    rating: show.vote_average ? show.vote_average.toFixed(1) : "N/A",
-    maturity: "TV-14",
-    poster: imagePoster(show.poster_path),
-    backdrop: imageBackdrop(show.backdrop_path),
+    id: makeShowId(mediaType, item.id),
+    mediaType,
+    title: title || "Untitled",
+    tagline: mediaType === "movie" ? "Feature film" : "Now streaming",
+    description: item.overview || "No description available.",
+    genres: genres.length > 0 ? genres : [mediaType === "movie" ? "Movie" : "TV"],
+    year: parseYear(dateStr),
+    rating: item.vote_average ? item.vote_average.toFixed(1) : "N/A",
+    maturity: mediaType === "movie" ? "PG-13" : "TV-14",
+    poster: imagePoster(item.poster_path),
+    backdrop: imageBackdrop(item.backdrop_path),
     accent: "#2b8fff",
-    trending: trendingIds.has(show.id),
+    trending: trendingKeys.has(makeShowId(mediaType, item.id)),
     seasons: [],
   };
 }
 
 function mapDetailsToShow(
-  details: TmdbShowDetails,
+  mediaType: MediaType,
+  details: TmdbTvDetails | TmdbMovieDetails,
   seasons: Season[]
 ): Show {
+  const title = mediaType === "movie" ? (details as TmdbMovieDetails).title : (details as TmdbTvDetails).name;
+  const dateStr =
+    mediaType === "movie"
+      ? (details as TmdbMovieDetails).release_date
+      : (details as TmdbTvDetails).first_air_date;
+
   return {
-    id: String(details.id),
-    title: details.name,
-    tagline: details.tagline || "Now streaming",
+    id: makeShowId(mediaType, details.id),
+    mediaType,
+    title: title || "Untitled",
+    tagline: details.tagline || (mediaType === "movie" ? "Feature film" : "Now streaming"),
     description: details.overview || "No description available.",
     genres:
-      details.genres?.map((g) => g.name).filter(Boolean) ?? ["TV"],
-    year: parseYear(details.first_air_date),
+      details.genres?.map((g) => g.name).filter(Boolean) ??
+      [mediaType === "movie" ? "Movie" : "TV"],
+    year: parseYear(dateStr),
     rating: details.vote_average ? details.vote_average.toFixed(1) : "N/A",
-    maturity: "TV-14",
+    maturity: mediaType === "movie" ? "PG-13" : "TV-14",
     poster: imagePoster(details.poster_path),
     backdrop: imageBackdrop(details.backdrop_path),
     accent: "#2b8fff",
@@ -198,8 +287,12 @@ function getVidsrcBaseUrl(): string {
   return (configured || VIDSRC_BASE_URL).replace(/\/+$/, "");
 }
 
-function buildEpisodeVideo(showId: string, seasonNumber: number, episodeNumber: number): string {
-  return `${getVidsrcBaseUrl()}/tv/${showId}/${seasonNumber}/${episodeNumber}`;
+function buildEpisodeVideo(tmdbId: string, seasonNumber: number, episodeNumber: number): string {
+  return `${getVidsrcBaseUrl()}/tv/${tmdbId}/${seasonNumber}/${episodeNumber}`;
+}
+
+function buildMovieVideo(tmdbId: string): string {
+  return `${getVidsrcBaseUrl()}/movie/${tmdbId}`;
 }
 
 export async function fetchHomeShows(): Promise<Show[]> {
@@ -207,19 +300,34 @@ export async function fetchHomeShows(): Promise<Show[]> {
     return homeShowsCache.value;
   }
 
-  const [genreMap, trendingData, popularData] = await Promise.all([
-    getGenreMap(),
-    tmdbFetch<TmdbListResult<TmdbShowSummary>>("/trending/tv/week"),
-    tmdbFetch<TmdbListResult<TmdbShowSummary>>("/tv/popular"),
+  const [tvGenreMap, movieGenreMap, trendingTv, popularTv, trendingMovies, popularMovies] =
+    await Promise.all([
+      getGenreMap("tv"),
+      getGenreMap("movie"),
+      tmdbFetch<TmdbListResult<TmdbTvSummary>>("/trending/tv/week"),
+      tmdbFetch<TmdbListResult<TmdbTvSummary>>("/tv/popular"),
+      tmdbFetch<TmdbListResult<TmdbMovieSummary>>("/trending/movie/week"),
+      tmdbFetch<TmdbListResult<TmdbMovieSummary>>("/movie/popular"),
+    ]);
+
+  const trendingKeys = new Set([
+    ...trendingTv.results.map((s) => makeShowId("tv", s.id)),
+    ...trendingMovies.results.map((s) => makeShowId("movie", s.id)),
   ]);
 
-  const trendingIds = new Set(trendingData.results.map((show) => show.id));
-  const merged = [...trendingData.results, ...popularData.results];
-  const deduped = Array.from(
-    new Map(merged.map((show) => [show.id, show])).values()
-  ).slice(0, 30);
+  const dedupedTv = Array.from(
+    new Map([...trendingTv.results, ...popularTv.results].map((s) => [s.id, s])).values()
+  ).slice(0, 20);
+  const dedupedMovies = Array.from(
+    new Map([...trendingMovies.results, ...popularMovies.results].map((s) => [s.id, s])).values()
+  ).slice(0, 20);
 
-  const shows = deduped.map((show) => mapSummaryToShow(show, genreMap, trendingIds));
+  const tvShows = dedupedTv.map((s) => mapSummaryToShow("tv", s, tvGenreMap, trendingKeys));
+  const movieShows = dedupedMovies.map((s) =>
+    mapSummaryToShow("movie", s, movieGenreMap, trendingKeys)
+  );
+
+  const shows = interleave(tvShows, movieShows);
   shows.forEach((show) => {
     showSummaryCache.set(show.id, show);
   });
@@ -228,16 +336,24 @@ export async function fetchHomeShows(): Promise<Show[]> {
   return shows;
 }
 
+async function fetchTvSummary(tmdbId: string): Promise<Show> {
+  const details = await tmdbFetch<TmdbTvDetails>(`/tv/${tmdbId}`);
+  return mapDetailsToShow("tv", details, buildPlaceholderSeasons(details.number_of_seasons ?? 0));
+}
+
+async function fetchMovieSummary(tmdbId: string): Promise<Show> {
+  const details = await tmdbFetch<TmdbMovieDetails>(`/movie/${tmdbId}`);
+  return mapDetailsToShow("movie", details, []);
+}
+
 export async function fetchShowSummaryById(showId: string): Promise<Show> {
   const cached = showSummaryCache.get(showId);
   if (cached) return cached;
 
-  const details = await tmdbFetch<TmdbShowDetails>(`/tv/${showId}`);
-  const show = mapDetailsToShow(
-    details,
-    buildPlaceholderSeasons(details.number_of_seasons ?? 0)
-  );
-  showSummaryCache.set(showId, show);
+  const { mediaType, tmdbId } = parseShowId(showId);
+  const show = mediaType === "movie" ? await fetchMovieSummary(tmdbId) : await fetchTvSummary(tmdbId);
+
+  showSummaryCache.set(show.id, show);
   return show;
 }
 
@@ -271,14 +387,46 @@ export async function fetchShowsByQuery(query: string): Promise<Show[]> {
     language: "en-US",
   });
 
-  const [genreMap, data] = await Promise.all([
-    getGenreMap(),
-    tmdbFetch<TmdbListResult<TmdbShowSummary>>("/search/tv", params),
+  const [tvGenreMap, movieGenreMap, data] = await Promise.all([
+    getGenreMap("tv"),
+    getGenreMap("movie"),
+    tmdbFetch<TmdbListResult<TmdbMultiSearchResult>>("/search/multi", params),
   ]);
 
-  const shows = data.results.map((show) =>
-    mapSummaryToShow(show, genreMap, new Set<number>())
-  );
+  const shows = data.results
+    .filter((r) => r.media_type === "movie" || r.media_type === "tv")
+    .map((r) => {
+      const mediaType = r.media_type as "movie" | "tv";
+      const summary: TmdbTvSummary | TmdbMovieSummary =
+        mediaType === "movie"
+          ? {
+              id: r.id,
+              title: r.title ?? "Untitled",
+              overview: r.overview ?? "",
+              release_date: r.release_date,
+              vote_average: r.vote_average,
+              genre_ids: r.genre_ids,
+              poster_path: r.poster_path,
+              backdrop_path: r.backdrop_path,
+            }
+          : {
+              id: r.id,
+              name: r.name ?? "Untitled",
+              overview: r.overview ?? "",
+              first_air_date: r.first_air_date,
+              vote_average: r.vote_average,
+              genre_ids: r.genre_ids,
+              poster_path: r.poster_path,
+              backdrop_path: r.backdrop_path,
+            };
+
+      return mapSummaryToShow(
+        mediaType,
+        summary,
+        mediaType === "movie" ? movieGenreMap : tvGenreMap,
+        new Set<string>()
+      );
+    });
 
   shows.forEach((show) => {
     showSummaryCache.set(show.id, show);
@@ -288,11 +436,8 @@ export async function fetchShowsByQuery(query: string): Promise<Show[]> {
   return shows;
 }
 
-export async function fetchShowById(showId: string): Promise<Show> {
-  const cached = showDetailsCache.get(showId);
-  if (cached) return cached;
-
-  const details = await tmdbFetch<TmdbShowDetails>(`/tv/${showId}`);
+async function fetchTvShow(tmdbId: string): Promise<Show> {
+  const details = await tmdbFetch<TmdbTvDetails>(`/tv/${tmdbId}`);
 
   const seasonNumbers = (details.seasons ?? [])
     .map((season) => season.season_number)
@@ -300,26 +445,56 @@ export async function fetchShowById(showId: string): Promise<Show> {
 
   const seasonResults = await Promise.all(
     seasonNumbers.map((seasonNumber) =>
-      tmdbFetch<TmdbSeasonDetails>(`/tv/${showId}/season/${seasonNumber}`)
+      tmdbFetch<TmdbSeasonDetails>(`/tv/${tmdbId}/season/${seasonNumber}`)
     )
   );
 
   const seasons: Season[] = seasonResults.map((season) => ({
     number: season.season_number,
     episodes: season.episodes.map((episode) => ({
-      id: `${showId}-s${season.season_number}-e${episode.episode_number}`,
+      id: `tv-${tmdbId}-s${season.season_number}-e${episode.episode_number}`,
       episodeNumber: episode.episode_number,
       title: episode.name || `Episode ${episode.episode_number}`,
       description: episode.overview || "No episode overview available.",
       duration: formatRuntime(episode.runtime),
       thumbnail: imageBackground(episode.still_path, "w500", "#1f304d", "#0b1220"),
-      videoUrl: buildEpisodeVideo(showId, season.season_number, episode.episode_number),
+      videoUrl: buildEpisodeVideo(tmdbId, season.season_number, episode.episode_number),
     })),
   }));
 
-  const show = mapDetailsToShow(details, seasons);
-  showDetailsCache.set(showId, show);
-  showSummaryCache.set(showId, {
+  return mapDetailsToShow("tv", details, seasons);
+}
+
+async function fetchMovieShow(tmdbId: string): Promise<Show> {
+  const details = await tmdbFetch<TmdbMovieDetails>(`/movie/${tmdbId}`);
+
+  const season: Season = {
+    number: 1,
+    episodes: [
+      {
+        id: `movie-${tmdbId}-feature`,
+        episodeNumber: 1,
+        title: details.title || "Untitled",
+        description: details.overview || "No description available.",
+        duration: formatRuntime(details.runtime),
+        thumbnail: imageBackdrop(details.backdrop_path),
+        videoUrl: buildMovieVideo(tmdbId),
+      },
+    ],
+  };
+
+  return mapDetailsToShow("movie", details, [season]);
+}
+
+export async function fetchShowById(showId: string): Promise<Show> {
+  const cached = showDetailsCache.get(showId);
+  if (cached) return cached;
+
+  const { mediaType, tmdbId } = parseShowId(showId);
+  const show = mediaType === "movie" ? await fetchMovieShow(tmdbId) : await fetchTvShow(tmdbId);
+
+  showDetailsCache.set(show.id, show);
+  showSummaryCache.set(show.id, {
     ...show,
     seasons: buildPlaceholderSeasons(show.seasons.length),
   });

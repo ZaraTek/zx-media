@@ -312,6 +312,7 @@ function buildShow(seed: ShowSeed): Show {
 
   return {
     id: seed.id,
+    mediaType: "tv",
     title: seed.title,
     tagline: seed.tagline,
     description: seed.description,

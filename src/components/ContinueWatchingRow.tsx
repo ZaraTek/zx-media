@@ -58,7 +58,9 @@ export default function ContinueWatchingRow({
                 </div>
                 <div className="absolute inset-x-0 bottom-0 p-3">
                   <span className="text-xs font-bold text-[var(--color-accent-bright)]">
-                    S{entry.seasonNumber}:E{entry.episodeNumber}
+                    {entry.mediaType === "movie"
+                      ? "Movie"
+                      : `S${entry.seasonNumber}:E${entry.episodeNumber}`}
                   </span>
                   <p className="truncate text-sm font-semibold text-white">
                     {entry.showTitle}

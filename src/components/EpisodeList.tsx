@@ -41,9 +41,11 @@ export default function EpisodeList({
 
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-baseline gap-2">
-                <span className="text-sm font-bold text-[var(--color-accent-bright)]">
-                  S{seasonNumber}:E{ep.episodeNumber}
-                </span>
+                {show.mediaType !== "movie" && (
+                  <span className="text-sm font-bold text-[var(--color-accent-bright)]">
+                    S{seasonNumber}:E{ep.episodeNumber}
+                  </span>
+                )}
                 <h3 className="truncate text-sm font-semibold text-slate-100">
                   {ep.title}
                 </h3>

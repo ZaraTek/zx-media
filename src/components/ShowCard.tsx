@@ -61,9 +61,11 @@ export default function ShowCard({ show }: { show: Show }) {
           <span>{show.year}</span>
           <span className="h-1 w-1 rounded-full bg-slate-600" />
           <span>
-            {episodeCount > 0
-              ? `${episodeCount} eps`
-              : `${seasonCount} ${seasonCount === 1 ? "season" : "seasons"}`}
+            {show.mediaType === "movie"
+              ? "Movie"
+              : episodeCount > 0
+                ? `${episodeCount} eps`
+                : `${seasonCount} ${seasonCount === 1 ? "season" : "seasons"}`}
           </span>
         </div>
         <p className="mt-1 line-clamp-1 text-xs text-slate-500">

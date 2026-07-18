@@ -1,3 +1,5 @@
+export type MediaType = "movie" | "tv";
+
 export interface Episode {
   id: string;
   episodeNumber: number;
@@ -15,6 +17,7 @@ export interface Season {
 
 export interface Show {
   id: string;
+  mediaType: MediaType;
   title: string;
   tagline: string;
   description: string;
@@ -32,6 +35,7 @@ export interface Show {
 export interface WatchProgress {
   showId: string;
   episodeId: string;
+  mediaType?: MediaType;
   seasonNumber: number;
   episodeNumber: number;
   episodeTitle: string;

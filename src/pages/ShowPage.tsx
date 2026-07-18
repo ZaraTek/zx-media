@@ -135,10 +135,14 @@ export default function ShowPage() {
                 <span className="rounded border border-slate-500/60 px-1.5 text-xs">
                   {show.maturity}
                 </span>
-                <span>
-                  {show.seasons.length}{" "}
-                  {show.seasons.length === 1 ? "Season" : "Seasons"}
-                </span>
+                {show.mediaType === "movie" ? (
+                  firstEpisode && <span>{firstEpisode.duration}</span>
+                ) : (
+                  <span>
+                    {show.seasons.length}{" "}
+                    {show.seasons.length === 1 ? "Season" : "Seasons"}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 {show.genres.map((g) => (
@@ -157,7 +161,8 @@ export default function ShowPage() {
                     to={`/shows/watch/${show.id}/${firstEpisode.id}`}
                     className="flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--color-accent)]/40 transition hover:bg-[var(--color-accent-bright)]"
                   >
-                    <PlayIcon className="h-5 w-5" /> Play S1:E1
+                    <PlayIcon className="h-5 w-5" />{" "}
+                    {show.mediaType === "movie" ? "Play Movie" : "Play S1:E1"}
                   </Link>
                 )}
                 <button
@@ -192,7 +197,9 @@ export default function ShowPage() {
 
         <div className="mt-10 flex flex-col gap-5">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-bold tracking-tight">Episodes</h2>
+            <h2 className="text-xl font-bold tracking-tight">
+              {show.mediaType === "movie" ? "Watch" : "Episodes"}
+            </h2>
             {show.seasons.length > 1 && (
               <div className="flex gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
                 {show.seasons.map((s) => (

@@ -88,7 +88,7 @@ export default function HomePage() {
           Find something to watch
         </h1>
         <p className="text-sm text-slate-400">
-          Stream original series, documentaries, and more.
+          Stream movies, series, documentaries, and more.
         </p>
         <div className="mt-4 max-w-2xl">
           <SearchBar value={query} onChange={setQuery} />
