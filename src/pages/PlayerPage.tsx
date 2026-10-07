@@ -12,6 +12,27 @@ const SOURCES = [
 
 type SourceKey = (typeof SOURCES)[number]["key"];
 
+const DEFAULT_SOURCE: SourceKey = "vidsrc";
+const LAST_SOURCE_STORAGE_KEY = "zx-media:last-source";
+
+function loadLastSource(): SourceKey {
+  try {
+    const raw = localStorage.getItem(LAST_SOURCE_STORAGE_KEY);
+    if (raw && SOURCES.some((s) => s.key === raw)) return raw as SourceKey;
+  } catch {
+    // storage unavailable; fall back to default
+  }
+  return DEFAULT_SOURCE;
+}
+
+function saveLastSource(source: SourceKey) {
+  try {
+    localStorage.setItem(LAST_SOURCE_STORAGE_KEY, source);
+  } catch {
+    // ignore
+  }
+}
+
 function buildVideoUrl(
   source: SourceKey,
   mediaType: MediaType,
@@ -61,7 +82,7 @@ export default function PlayerPage() {
   const [show, setShow] = useState<Show | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<SourceKey>("videasy");
+  const [source, setSource] = useState<SourceKey>(loadLastSource);
 
   useEffect(() => {
     let mounted = true;
@@ -188,7 +209,10 @@ export default function PlayerPage() {
           <button
             key={s.key}
             type="button"
-            onClick={() => setSource(s.key)}
+            onClick={() => {
+              setSource(s.key);
+              saveLastSource(s.key);
+            }}
             className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
               source === s.key
                 ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-white"
