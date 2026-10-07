@@ -219,14 +219,16 @@ export default function VideoPlayer({
           className="h-full w-full border-0"
         />
 
-        <div className="pointer-events-none absolute left-0 right-0 top-0 bg-gradient-to-b from-black/85 to-transparent p-4 sm:p-6">
-          <h2 className="text-lg font-bold text-white drop-shadow sm:text-xl">
-            {title}
-          </h2>
-          {subtitle && (
-            <p className="text-sm text-slate-300 drop-shadow">{subtitle}</p>
-          )}
-        </div>
+        {!fullscreen && (
+          <div className="pointer-events-none absolute left-0 right-0 top-0 bg-gradient-to-b from-black/85 to-transparent p-4 sm:p-6">
+            <h2 className="text-lg font-bold text-white drop-shadow sm:text-xl">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-sm text-slate-300 drop-shadow">{subtitle}</p>
+            )}
+          </div>
+        )}
 
         <button
           type="button"
@@ -309,15 +311,19 @@ export default function VideoPlayer({
         className={`pointer-events-none absolute inset-0 flex flex-col justify-between transition-opacity duration-300 ${
           controlsVisible ? "opacity-100" : "opacity-0"
         }`}
-      > 
-        <div className="pointer-events-auto bg-gradient-to-b from-black/70 to-transparent p-4 sm:p-6">
-          <h2 className="text-lg font-bold text-white drop-shadow sm:text-xl">
-            {title}
-          </h2>
-          {subtitle && (
-            <p className="text-sm text-slate-300 drop-shadow">{subtitle}</p>
-          )}
-        </div>
+      >
+        {fullscreen ? (
+          <div />
+        ) : (
+          <div className="pointer-events-auto bg-gradient-to-b from-black/70 to-transparent p-4 sm:p-6">
+            <h2 className="text-lg font-bold text-white drop-shadow sm:text-xl">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-sm text-slate-300 drop-shadow">{subtitle}</p>
+            )}
+          </div>
+        )}
 
         <div className="pointer-events-auto flex flex-col gap-2 bg-gradient-to-t from-black/80 to-transparent px-4 pb-4 pt-10 sm:px-6 sm:pb-5">
           <div className="relative flex items-center">
