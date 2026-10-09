@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useLibrary } from "../context/LibraryContext";
 import EpisodeList from "../components/EpisodeList";
+import SeasonTabs from "../components/SeasonTabs";
 import { fetchShowById } from "../data/tmdb";
 import type { Show } from "../types";
 import {
@@ -196,29 +197,12 @@ export default function ShowPage() {
         </p>
 
         <div className="mt-10 flex flex-col gap-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-bold tracking-tight">
-              {show.mediaType === "movie" ? "Watch" : "Episodes"}
-            </h2>
-            {show.seasons.length > 1 && (
-              <div className="flex gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
-                {show.seasons.map((s) => (
-                  <button
-                    key={s.number}
-                    type="button"
-                    onClick={() => setActiveSeason(s.number)}
-                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-                      activeSeason === s.number
-                        ? "bg-[var(--color-accent)] text-white"
-                        : "text-slate-300 hover:text-white"
-                    }`}
-                  >
-                    Season {s.number}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <SeasonTabs
+            title={show.mediaType === "movie" ? "Watch" : "Episodes"}
+            seasons={show.seasons}
+            activeSeason={activeSeason}
+            onSelect={setActiveSeason}
+          />
 
           {season ? (
             <EpisodeList
